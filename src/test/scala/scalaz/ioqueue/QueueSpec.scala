@@ -130,6 +130,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
       1.second
     )(e43)}
+    make a bounded queue, fill it to capacity then have more offers waiting, each call to `take` should free one waiting offer ${upTo(
+      30.second
+    )(e44).pendingUntilFixed("ISSUE 30")}
     """
 
   def e1 = unsafeRun(
@@ -586,6 +589,18 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.size
       } yield ()
     ) must_=== ExitResult.Terminated(Nil)
+
+  def e44 = {
+    val toRun = for {
+      queue     <- Queue.bounded[Int](1)
+      _         <- queue.offer(1)
+      fiber2    <- queue.offer(2).fork
+      firstOut  <- queue.take
+      _         <- fiber2.join // That's the point of the test, take should have allowed this offer to complete
+      secondOut <- queue.take
+    } yield (true)
+    unsafeRun(toRun.timeout(false)(b => b)(100.millis)) must_=== true
+  }
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
