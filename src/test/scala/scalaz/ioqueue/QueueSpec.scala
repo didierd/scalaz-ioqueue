@@ -132,7 +132,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     )(e43)}
     make a bounded queue, fill it to capacity then have more offers waiting, each call to `take` should free one waiting offer ${upTo(
       30.second
-    )(e44).pendingUntilFixed("ISSUE 30")}
+    )(e44)}
     """
 
   def e1 = unsafeRun(
